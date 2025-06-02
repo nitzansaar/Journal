@@ -1,0 +1,185 @@
+---
+
+# 📝 Product Requirements Document: **Daily Journal Web App**
+
+## 1. Overview
+
+This is a **multi-container full-stack web application** that allows users to register, log in, write journal entries, and view past entries.
+The app uses **Next.js** for the frontend, **FastAPI** for the backend, and **Supabase** for authentication and database management.
+
+The entire application should be **containerized using Docker** with a single `docker-compose.yml` file managing all services.
+
+---
+
+## 2. Goals
+
+* Users can **sign up and log in** securely (Supabase Auth)
+* Users can **submit multiple journal entries per day**
+* Users can **view all of their past entries**
+* Each part of the stack runs in its own container
+
+---
+
+## 3. Architecture
+
+### 🔌 Components & Responsibilities
+
+| Component       | Tech Stack        | Description                                                        |
+| --------------- | ----------------- | ------------------------------------------------------------------ |
+| `frontend`      | Next.js           | Renders UI, handles auth, fetches/sends data to backend            |
+| `backend`       | FastAPI           | Receives requests from frontend, talks to Supabase securely        |
+| `database/auth` | Supabase (hosted) | Manages users and journal entries                                  |
+| `reverse-proxy` | Nginx (optional)  | Routes `/api` to backend, `/` to frontend (optional for local dev) |
+
+---
+
+## 4. Functional Requirements
+
+### 4.1 User Authentication (via Supabase)
+
+* Email/password sign up and login using Supabase Auth
+* On login, store Supabase session client-side in the frontend
+* Pass the user’s auth token to backend for secure API calls
+
+---
+
+### 4.2 Journal Entry Creation
+
+* Endpoint: `POST /entries`
+* Input: `content` (string), retrieved via frontend form
+* The backend extracts `user_id` from the Supabase JWT token
+* Stores `user_id`, `created_at`, `content` in Supabase `journal_entries` table
+
+---
+
+### 4.3 Journal Entry Viewing
+
+* Endpoint: `GET /entries`
+* Requires valid auth token in the request
+* Returns all entries for the authenticated user, ordered by `created_at` descending
+
+---
+
+## 5. Non-Functional Requirements
+
+* All services should be dockerized and runnable via `docker-compose up`
+* Secrets like Supabase keys should be stored in `.env` and passed to services
+* Frontend and backend should auto-reload in development mode
+
+---
+
+## 6. API Specification
+
+### 🔐 Authentication
+
+All backend routes require an `Authorization: Bearer <token>` header.
+
+---
+
+### POST `/entries`
+
+**Creates a new journal entry**
+
+* **Request Body:**
+
+```json
+{
+  "content": "Today I learned about Docker."
+}
+```
+
+* **Response:**
+
+```json
+{
+  "id": "uuid",
+  "created_at": "timestamp",
+  "user_id": "user_id",
+  "content": "Today I learned about Docker."
+}
+```
+
+---
+
+### GET `/entries`
+
+**Fetches all entries for the current user**
+
+* **Response:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "created_at": "timestamp",
+    "content": "Entry content"
+  },
+  ...
+]
+```
+
+---
+
+## 7. Database Schema (Supabase)
+
+### `journal_entries` Table
+
+| Column       | Type      | Notes                    |
+| ------------ | --------- | ------------------------ |
+| `id`         | uuid      | Primary key              |
+| `user_id`    | text      | From Supabase Auth       |
+| `created_at` | timestamp | Default: `now()`         |
+| `content`    | text      | The journal entry itself |
+
+---
+
+## 8. Environment Variables (.env)
+
+At root of project:
+
+```
+SUPABASE_URL=https://xyz.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+Frontend gets the `ANON_KEY`, backend uses `SERVICE_ROLE_KEY` to insert securely.
+
+---
+
+## 9. Docker Compose Setup
+
+```yaml
+version: '3.8'
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    env_file: .env
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file: .env
+```
+
+---
+
+## 10. Developer Workflow
+
+1. Clone the repo.
+2. Set up a Supabase project and get credentials.
+3. Fill in `.env`.
+4. Run the app locally:
+
+   ```bash
+   docker-compose up --build
+   ```
+5. Frontend available at [http://localhost:3000](http://localhost:3000)
+   Backend at [http://localhost:8000](http://localhost:8000)
+
+---
