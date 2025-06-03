@@ -32,3 +32,6 @@ yarn-error.log*
 
 # Docker
 .docker/ 
+
+
+backend/get_token.py
